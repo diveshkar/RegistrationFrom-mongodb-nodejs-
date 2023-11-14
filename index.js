@@ -7,7 +7,7 @@ const cors = require('cors');
 app.use(cors(corsOptions));
 app.use(express.urlencoded({extended:false}));
 app.use(express.json());
-const SignUpController = require("./Controllers/SignUpController");
+const UserController = require("./Controllers/UserController");
 app.use('/', SignUpController);
 
 require('dotenv').config();
@@ -16,7 +16,8 @@ require('dotenv').config();
 DbConnection();
 
 // Controller
-app.use('/', require("./Controllers/SignUpController"));
+app.use('api/v1', UserController);
+
 
 app.get('/*', (req,res)=>{
     res.status(404).send(`<h1>404 Error<h1>`);

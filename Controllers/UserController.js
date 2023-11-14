@@ -1,14 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs')
 const { hashPassword,} = require('../helper')
-const signUpSchema = require('../Model/SignUpModel')
+const UserModal = require('../Model/SignUpModel')
 
 const router = express.Router();
 
 router.post("/Signup", async (req, res) => {
     try {
       console.log(req.body)
-      const existEmail = await signUpSchema.findOne({ UserEmail: req.body.uemail });
+      const existEmail = await UserModal.findOne({ UserEmail: req.body.uemail });
 
    
       if (existEmail) {
@@ -16,7 +16,7 @@ router.post("/Signup", async (req, res) => {
       }
       const hashPwd = await hashPassword(req.body.upass);
       console.log(hashPassword)
-      const signUpData = await new signUpSchema({
+      const signUpData = await new UserModal({
         UserName:req.body.uname,
         UserEmail:req.body.uemail,
         UserPassword:hashPwd,
@@ -35,6 +35,26 @@ router.post("/Signup", async (req, res) => {
 
       }
       return res.status(400).json(err);
+    }
+  });
+
+  router.post("/login", async (req, res) => {
+    try {
+      const validData = await UserModal.findOne({ email: req.body.email }).select('+password');
+      if (!validData) {
+        return res.status(400).json("Invalid email");
+      }
+    //   console.log(validData.password)
+      const validPass = await validPassword(req.body.password, validData.password);
+
+      if (validPass) {
+        const userToken = await generateToken(validData);
+        res.header(process.env.TOKEN_KEY, userToken).json(userToken);
+      } else {
+        return res.status(400).json("Invalid password");
+      }
+    } catch (err) {
+      res.status(500).json(err);
     }
   });
 
