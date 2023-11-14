@@ -10,50 +10,50 @@ const hashPassword = async (password) => {
     return bcrypt.hash(password, salt);
   };
   
-  const validPassword = async (password, validData) => {
-    return await bcrypt.compare(password, validData.password);
-  };
-
-
-  const generateToken = async (validData) => {
-    const userToken = jwt.sign({ _id: validData._id }, process.env.TOKEN_KEY, {
-      expiresIn: 60 * 60,
-    });
-  
-    return userToken;
-  };
 
   
- const TokenValidator = (token) => {
+
+
+  function generateAccessToken(validData) {
+    const payload = {
+      UserName: validData.UserName,
+      UserEmail: validData.UserEmail
+    };
+    
+    const secret = 'Hi MALINI I AM KRISHNAN';
+    const options = { expiresIn: '1h' };
+  
+    return jwt.sign(payload, secret, options);
+  }
+  
+  function verifyAccessToken(token) {
+    const secret = 'Hi MALINI I AM KRISHNAN';
+  
     try {
-      const data = jwt.verify(token, process.env.TOKEN_KEY);
-      return data ? true : false;
-    } catch (err) {
-      return false;
+      const decoded = jwt.verify(token, secret);
+      return { success: true, data: decoded };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
-  };
+  }
   
-   const decodeToken = (token) => {
-    try {
-      return jwt.verify(token, process.env.TOKEN_KEY);
-    } catch (err) {}
-  };
+  function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
   
-  const validateToken = async (req, res, next) => {
-    try {
-      const jwtToken = req.header(process.env.TOKEN_KEY);
-      req.token = jwtToken;
-      const valid = await TokenValidator(jwtToken);
-      // console.log("valid", valid);
-      if (valid) {
-        next();
-      } else {
-        res.status(403).json("Sorry your Token is expired!");
-      }
-    } catch (err) {
-      res.status(500).json(err);
+    if (!token) {
+      return res.sendStatus(401);
     }
-  };
   
-  module.exports= { hashPassword, validPassword, generateToken, validateToken ,decodeToken,TokenValidator};
+    const result = verifyAccessToken(token);
+  
+    if (!result.success) {
+      return res.status(403).json({ error: result.error });
+    }
+  
+    req.user = result.data;
+    next();
+  }
+  
+  module.exports= { hashPassword, authenticateToken, verifyAccessToken ,generateAccessToken};
   

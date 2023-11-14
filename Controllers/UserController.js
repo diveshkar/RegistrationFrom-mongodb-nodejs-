@@ -1,61 +1,64 @@
 const express = require('express');
-const bcrypt = require('bcryptjs')
-const { hashPassword,} = require('../helper')
-const UserModal = require('../Model/SignUpModel')
+const bcrypt = require('bcryptjs');
+const { hashPassword,generateAccessToken} = require('../helper');
+const signUpSchema = require('../Model/SignUpModel');
 
 const router = express.Router();
 
+// Registration Route
 router.post("/Signup", async (req, res) => {
-    try {
-      console.log(req.body)
-      const existEmail = await UserModal.findOne({ UserEmail: req.body.uemail });
+  try {
+    const existEmail = await signUpSchema.findOne({ UserName: req.body.uname }).select(+UserPassword);
 
-   
-      if (existEmail) {
-        return res.status(400).json("email already exists");
-      }
-      const hashPwd = await hashPassword(req.body.upass);
-      console.log(hashPassword)
-      const signUpData = await new UserModal({
-        UserName:req.body.uname,
-        UserEmail:req.body.uemail,
-        UserPassword:hashPwd,
-        UserType:req.body.utype,
-      });
-      const postUser = await signUpData.save();
-      if (postUser) {
-        return res.status(200).json("Registered successfully");
-      }
-    } catch (err) {
-        // console.log(err)
-        if(err.code===0){
-            return res.status(400).json([err,"duplicate key found"]);
-      }if(err.code===11000){
-        return res.status(400).json(err);
-
-      }
-      return res.status(400).json(err);
+    if (existEmail) {
+      return res.status(400).json("Email already exists");
     }
-  });
 
-  router.post("/login", async (req, res) => {
-    try {
-      const validData = await UserModal.findOne({ email: req.body.email }).select('+password');
-      if (!validData) {
-        return res.status(400).json("Invalid email");
-      }
-    //   console.log(validData.password)
-      const validPass = await validPassword(req.body.password, validData.password);
+    const hashPwd = await hashPassword(req.body.upass);
 
-      if (validPass) {
-        const userToken = await generateToken(validData);
-        res.header(process.env.TOKEN_KEY, userToken).json(userToken);
-      } else {
-        return res.status(400).json("Invalid password");
-      }
-    } catch (err) {
-      res.status(500).json(err);
+    const signUpData = new signUpSchema({
+      UserName: req.body.uname,
+      UserEmail: req.body.uemail,
+      UserPassword: hashPwd,
+      UserType: req.body.utype,
+    });
+
+    const postUser = await signUpData.save();
+
+    if (postUser) {
+      return res.status(200).json("Registered successfully");
     }
-  });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json("Duplicate key found");
+    }
+    return res.status(400).json(err.message || err);
+  }
+});
 
-  module.exports = router; 
+// Login Route
+router.post("/login", async (req, res) => {
+  try {
+    // Use await to get the actual result from the query
+    const validData = await signUpSchema.findOne({ UserEmail: req.body.uemail }).select('+UserPassword');
+    console.log(validData);
+
+    if (!validData) {
+      return res.status(400).json("Invalid email");
+    }
+
+    const isPasswordValid = await bcrypt.compare(req.body.upass, validData.UserPassword);
+
+    if (isPasswordValid) {
+      const userToken = generateAccessToken(validData);
+      res.header('Authorization', `Bearer ${userToken}`).json({ token: userToken });
+    } else {
+      return res.status(400).json("Invalid password");
+    }
+  } catch (err) {
+    return res.status(500).json(err.message || err);
+  }
+});
+
+
+module.exports = router;

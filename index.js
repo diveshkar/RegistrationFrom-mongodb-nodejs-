@@ -8,7 +8,7 @@ app.use(cors(corsOptions));
 app.use(express.urlencoded({extended:false}));
 app.use(express.json());
 const UserController = require("./Controllers/UserController");
-app.use('/', SignUpController);
+// app.use('/', UserController);
 
 require('dotenv').config();
 
@@ -16,7 +16,7 @@ require('dotenv').config();
 DbConnection();
 
 // Controller
-app.use('api/v1', UserController);
+app.use('/api/v1/', UserController);
 
 
 app.get('/*', (req,res)=>{
